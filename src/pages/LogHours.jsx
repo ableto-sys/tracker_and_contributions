@@ -30,10 +30,11 @@ export default function LogHours() {
   const validate = () => {
     const e = {};
     if (!form.date) e.date = 'Date is required.';
-    if (form.date && form.date < CONTRIBUTION_START_DATE) e.date = 'Contributions are counted from May 5, 2026 onward.';
+    if (form.date && form.date < CONTRIBUTION_START_DATE) e.date = 'Contributions are counted from Tuesday, May 5, 2026 onward.';
     if (!form.hours || isNaN(form.hours) || Number(form.hours) <= 0) e.hours = 'Enter a valid number of hours.';
     if (Number(form.hours) > 24) e.hours = 'Hours cannot exceed 24.';
     if (noteLen < 20) e.notes = 'Please describe your progress (minimum 20 characters).';
+    if (!hasMedia) e.mediaFiles = 'Attach at least one picture, video, PDF, or file to verify this entry.';
     return e;
   };
 
@@ -78,7 +79,7 @@ export default function LogHours() {
         <p style={{ color: 'var(--text-secondary)', fontSize: 15, marginBottom: 32, maxWidth: 360 }}>
           Your <strong style={{ color: 'var(--accent)' }}>{form.hours}h</strong> work session for{' '}
           <strong style={{ color: 'var(--accent)' }}>{user?.team}</strong>{' '}
-          {isVerified ? 'has been recorded and verified.' : 'has been recorded and is waiting for file evidence or executive review.'}
+          has been recorded and verified.
         </p>
         <div style={{ display: 'flex', gap: 12 }}>
           <button className="btn btn-ghost" onClick={() => { setSubmitted(false); setForm({ date: today, hours: '', notes: '', mediaFiles: [] }); }}>
@@ -133,12 +134,12 @@ export default function LogHours() {
           </div>
           <div style={{ marginTop: 10, display: 'flex', gap: 16, flexWrap: 'wrap' }}>
             <span style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 5, color: hasMedia ? 'var(--success)' : 'var(--text-muted)' }}>
-              {hasMedia ? <CheckCircle size={13} /> : <AlertCircle size={13} />} Supporting file required for automatic verification
+              {hasMedia ? <CheckCircle size={13} /> : <AlertCircle size={13} />} Supporting file required for verification
             </span>
           </div>
           {!isVerified && (
-            <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 6, color: 'var(--text-muted)', fontSize: 13 }}>
-              <AlertCircle size={14} /> Entries without a file remain in the executive review queue.
+            <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 6, color: errors.mediaFiles ? 'var(--danger)' : 'var(--text-muted)', fontSize: 13 }}>
+              <AlertCircle size={14} /> A file is required before this entry can be submitted.
             </div>
           )}
         </div>
@@ -176,7 +177,7 @@ export default function LogHours() {
               <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
                 {errors.notes
                   ? <span className="form-error">{errors.notes}</span>
-                  : <span className="form-hint">Be specific. Minimum 20 characters, 50+ for full verification without media.</span>
+                  : <span className="form-hint">Be specific. Minimum 20 characters.</span>
                 }
                 <span style={{ fontSize: 12, fontWeight: 600, color: noteLen >= 50 ? 'var(--success)' : noteLen >= 20 ? 'var(--warning)' : 'var(--danger)', flexShrink: 0, marginLeft: 8 }}>
                   {noteLen} chars
@@ -187,11 +188,12 @@ export default function LogHours() {
             <div className="form-group">
               <label className="form-label">
                 Supporting Media
-                <span style={{ color: 'var(--text-muted)', fontWeight: 400, textTransform: 'none', fontSize: 12, marginLeft: 6 }}>
-                  (required if notes &lt; 50 chars)
+                <span style={{ color: 'var(--danger)', fontWeight: 600, textTransform: 'none', fontSize: 12, marginLeft: 6 }}>
+                  (required)
                 </span>
               </label>
               <MediaUpload value={form.mediaFiles} onChange={v => set('mediaFiles', v)} />
+              {errors.mediaFiles && <span className="form-error">{errors.mediaFiles}</span>}
             </div>
 
             <hr className="divider" />
@@ -204,8 +206,8 @@ export default function LogHours() {
               <button
                 className="btn btn-primary btn-lg"
                 type="submit"
-                disabled={!form.hours || noteLen < 20 || saving}
-                style={{ opacity: (!form.hours || noteLen < 20) ? 0.5 : 1 }}
+                disabled={!form.hours || noteLen < 20 || !hasMedia || saving}
+                style={{ opacity: (!form.hours || noteLen < 20 || !hasMedia) ? 0.5 : 1 }}
               >
                 <FileCheck size={16} /> {saving ? 'Saving...' : 'Submit & Verify'}
               </button>

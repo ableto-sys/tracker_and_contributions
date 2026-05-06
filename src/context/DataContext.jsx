@@ -250,10 +250,17 @@ export function DataProvider({ children }) {
 
   const addLog = async (entry) => {
     setSyncError('');
+    const hasMedia = Boolean(entry.mediaFiles?.length);
+
+    if (entry.date < CONTRIBUTION_START_DATE) {
+      return { error: 'Contributions are counted from Tuesday, May 5, 2026 onward.' };
+    }
+
+    if (!hasMedia) {
+      return { error: 'Attach at least one file to verify this entry.' };
+    }
 
     if (isSupabaseConfigured) {
-      const hasMedia = Boolean(entry.mediaFiles?.length);
-
       const { data: created, error } = await supabase
         .from('work_logs')
         .insert({
@@ -296,7 +303,7 @@ export function DataProvider({ children }) {
       ...entry,
       id: 'l' + Date.now(),
       userRole: user.role,
-      verificationStatus: entry.mediaFiles?.length ? 'verified' : 'needs_review',
+      verificationStatus: 'verified',
       submittedAt: new Date().toISOString(),
     };
 

@@ -72,6 +72,13 @@ create index if not exists work_log_media_log_id_idx on public.work_log_media(wo
 delete from public.work_logs
 where work_date < date '2026-05-05';
 
+alter table public.work_logs
+drop constraint if exists work_logs_start_date_check;
+
+alter table public.work_logs
+add constraint work_logs_start_date_check
+check (work_date >= date '2026-05-05');
+
 alter table public.executive_email_allowlist enable row level security;
 alter table public.site_admin_email_allowlist enable row level security;
 alter table public.profiles enable row level security;
