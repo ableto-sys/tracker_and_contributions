@@ -164,8 +164,15 @@ input, textarea, select { font-family: inherit; }
 }
 .log-card:hover { border-color: var(--border-focus); background: var(--bg-card-hover); }
 .log-card-header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+.log-card-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
 .log-card-meta { display: flex; align-items: center; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
 .log-card-notes { font-size: 14px; color: var(--text-secondary); line-height: 1.6; }
+.review-status {
+  display: inline-flex; align-items: center; gap: 4px;
+  border-radius: 20px; padding: 2px 9px; font-size: 12px; font-weight: 700;
+}
+.review-status.verified { background: rgba(37,99,235,0.12); color: #bfdbfe; border: 1px solid rgba(96,165,250,0.28); }
+.review-status.needs-review { background: rgba(96,165,250,0.16); color: #eff6ff; border: 1px solid rgba(147,197,253,0.42); }
 
 .media-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 .media-thumb {

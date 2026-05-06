@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Calendar, Clock, FileText, Image, Film, File, Trash2 } from 'lucide-react';
+import { AlertCircle, Calendar, CheckCircle, Clock, FileText, Image, Film, File, Trash2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { TEAM_META } from '../lib/trackerConfig';
@@ -12,8 +12,10 @@ function MediaIcon({ type }) {
 
 export default function LogCard({ log, showUser = false }) {
   const { user } = useAuth();
-  const { deleteLog } = useData();
+  const { deleteLog, verifyLog } = useData();
   const [lightbox, setLightbox] = useState(null);
+  const [verifying, setVerifying] = useState(false);
+  const [reviewError, setReviewError] = useState('');
 
   const meta = TEAM_META[log.team] || { color: '#93c5fd', badge: 'badge-blue' };
   const initials = log.userName?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
@@ -25,6 +27,17 @@ export default function LogCard({ log, showUser = false }) {
   const others = log.mediaFiles?.filter(f => !f.type?.startsWith('image')) || [];
 
   const canDelete = user?.id === log.userId || user?.role === 'executive';
+  const needsReview = log.verificationStatus === 'needs_review';
+  const canVerify = user?.role === 'executive' && needsReview;
+
+  const handleVerify = async () => {
+    setReviewError('');
+    setVerifying(true);
+    const result = await verifyLog(log.id);
+    setVerifying(false);
+
+    if (result.error) setReviewError(result.error);
+  };
 
   return (
     <>
@@ -48,19 +61,38 @@ export default function LogCard({ log, showUser = false }) {
               }}>
                 {log.hours}h
               </span>
+              <span className={`review-status ${needsReview ? 'needs-review' : 'verified'}`}>
+                {needsReview ? <AlertCircle size={12} /> : <CheckCircle size={12} />}
+                {needsReview ? 'Needs Review' : 'Verified'}
+              </span>
             </div>
           </div>
-          {canDelete && (
-            <button
-              className="btn btn-danger btn-sm"
-              style={{ padding: '5px 8px' }}
-              onClick={() => deleteLog(log.id)}
-              title="Delete entry"
-            >
-              <Trash2 size={13} />
-            </button>
-          )}
+          <div className="log-card-actions">
+            {canVerify && (
+              <button
+                className="btn btn-primary btn-sm"
+                style={{ padding: '5px 10px' }}
+                onClick={handleVerify}
+                disabled={verifying}
+              >
+                <CheckCircle size={13} />
+                {verifying ? 'Verifying...' : 'Verify'}
+              </button>
+            )}
+            {canDelete && (
+              <button
+                className="btn btn-danger btn-sm"
+                style={{ padding: '5px 8px' }}
+                onClick={() => deleteLog(log.id)}
+                title="Delete entry"
+              >
+                <Trash2 size={13} />
+              </button>
+            )}
+          </div>
         </div>
+
+        {reviewError && <div className="auth-error" style={{ marginBottom: 12 }}>{reviewError}</div>}
 
         <p className="log-card-notes">
           <FileText size={13} style={{ display: 'inline', marginRight: 5, opacity: 0.6, verticalAlign: 'middle' }} />

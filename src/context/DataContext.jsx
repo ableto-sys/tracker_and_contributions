@@ -315,6 +315,36 @@ export function DataProvider({ children }) {
     return { ok: true };
   };
 
+  const verifyLog = async (id) => {
+    setSyncError('');
+
+    if (user?.role !== 'executive') {
+      return { error: 'Only executive board members can verify entries.' };
+    }
+
+    if (isSupabaseConfigured) {
+      const { error } = await supabase
+        .from('work_logs')
+        .update({ verification_status: 'verified' })
+        .eq('id', id);
+
+      if (error) {
+        setSyncError(error.message);
+        return { error: error.message };
+      }
+
+      setLogs(current => current.map(log => (
+        log.id === id ? { ...log, verificationStatus: 'verified' } : log
+      )));
+      return { ok: true };
+    }
+
+    saveLocal(logs.map(log => (
+      log.id === id ? { ...log, verificationStatus: 'verified' } : log
+    )));
+    return { ok: true };
+  };
+
   const getLogsForUser = (userId) => logs.filter(log => log.userId === userId);
 
   const getAllLogs = () => [...logs].sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt));
@@ -384,6 +414,7 @@ export function DataProvider({ children }) {
     dataBackend: isSupabaseConfigured ? 'supabase' : 'local',
     addLog,
     deleteLog,
+    verifyLog,
     refreshLogs: isSupabaseConfigured ? loadSupabaseLogs : loadLocal,
     getLogsForUser,
     getAllLogs,

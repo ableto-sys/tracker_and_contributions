@@ -21,7 +21,7 @@ function formatDate(d) {
 }
 
 function isLogVerified(log) {
-  return log.verificationStatus === 'verified' || log.mediaFiles?.length > 0 || log.notes?.length >= 50;
+  return log.verificationStatus !== 'needs_review';
 }
 
 function weeksAgo(weeksBack) {
@@ -373,6 +373,7 @@ export default function ExecutiveDashboard() {
   const activeContributors = members.filter(member => member.entries > 0).length;
   const avgHoursPerContributor = activeContributors ? (stats.total / activeContributors).toFixed(1) : 0;
   const verifiedLogs = allLogs.filter(isLogVerified);
+  const pendingReviewLogs = allLogs.filter(log => log.verificationStatus === 'needs_review');
   const verificationRate = allLogs.length ? Math.round((verifiedLogs.length / allLogs.length) * 100) : 0;
 
   const latestActivityByUser = new Map();
@@ -392,13 +393,11 @@ export default function ExecutiveDashboard() {
     .map(team => ({ team, hours: stats.byTeam[team] || 0 }))
     .sort((a, b) => b.hours - a.hours)[0];
 
-  const filteredLogs = useMemo(() => {
-    return allLogs.filter(l => {
-      const matchTeam = teamFilter === 'All Teams' || l.team === teamFilter;
-      const matchSearch = !search || l.userName.toLowerCase().includes(search.toLowerCase()) || l.notes.toLowerCase().includes(search.toLowerCase());
-      return matchTeam && matchSearch;
-    });
-  }, [allLogs, teamFilter, search]);
+  const filteredLogs = allLogs.filter(l => {
+    const matchTeam = teamFilter === 'All Teams' || l.team === teamFilter;
+    const matchSearch = !search || l.userName.toLowerCase().includes(search.toLowerCase()) || l.notes.toLowerCase().includes(search.toLowerCase());
+    return matchTeam && matchSearch;
+  });
 
   const maxHours = members[0]?.hours || 1;
 
@@ -509,16 +508,18 @@ export default function ExecutiveDashboard() {
           <h2>Working hours are ready for board review</h2>
           <p>
             {monthHours} hours were logged in the last 30 days across {activeContributors} active contributor{activeContributors !== 1 ? 's' : ''}.
-            {attentionMembers.length
-              ? ` ${attentionMembers.length} member${attentionMembers.length !== 1 ? 's need' : ' needs'} follow up based on recent activity.`
-              : ' Every tracked member has recent activity.'}
+            {pendingReviewLogs.length
+              ? ` ${pendingReviewLogs.length} entr${pendingReviewLogs.length !== 1 ? 'ies are' : 'y is'} waiting for executive verification.`
+              : attentionMembers.length
+                ? ` ${attentionMembers.length} member${attentionMembers.length !== 1 ? 's need' : ' needs'} follow up based on recent activity.`
+                : ' Every tracked member has recent activity and no entries are pending review.'}
           </p>
           <div className="board-summary-actions">
-            <button className="btn btn-primary btn-sm" onClick={() => setTab('feed')}>
-              <Activity size={14} /> Review Feed
+            <button className="btn btn-primary btn-sm" onClick={() => setTab('review')}>
+              <ShieldCheck size={14} /> Review Queue
             </button>
-            <button className="btn btn-ghost btn-sm" onClick={() => setTab('members')}>
-              <Users size={14} /> Review Members
+            <button className="btn btn-ghost btn-sm" onClick={() => setTab('feed')}>
+              <Activity size={14} /> Activity Feed
             </button>
           </div>
         </div>
@@ -548,9 +549,9 @@ export default function ExecutiveDashboard() {
           {
             icon: <AlertTriangle size={18} />,
             label: 'Attention',
-            value: attentionMembers.length,
+            value: pendingReviewLogs.length,
             note: 'needs review',
-            color: attentionMembers.length ? '#93c5fd' : '#bfdbfe',
+            color: pendingReviewLogs.length ? '#93c5fd' : '#bfdbfe',
           },
         ].map(card => (
           <div className="board-metric" key={card.label}>
@@ -586,6 +587,7 @@ export default function ExecutiveDashboard() {
         {[
           { key: 'overview',  label: 'Team Breakdown' },
           { key: 'members',   label: `Members (${members.length})` },
+          { key: 'review',    label: `Review Queue (${pendingReviewLogs.length})` },
           { key: 'feed',      label: 'Activity Feed' },
           { key: 'ranking', label: 'Hours Ranking' },
         ].map(t => (
@@ -658,6 +660,35 @@ export default function ExecutiveDashboard() {
             <div className="empty-state"><Users size={48} /><h3>No members found</h3></div>
           )}
         </>
+      )}
+
+      {/* Review queue tab */}
+      {tab === 'review' && (
+        pendingReviewLogs.length === 0 ? (
+          <div className="empty-state">
+            <ShieldCheck size={48} />
+            <h3>No entries need review</h3>
+            <p>Verified entries are cleared from this queue.</p>
+          </div>
+        ) : (
+          <div className="logs-list">
+            {pendingReviewLogs.map(log => (
+              <div key={log.id}>
+                <LogCard log={log} showUser />
+                <div style={{ height: 4 }} />
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+                  <button
+                    className="btn btn-ghost btn-sm"
+                    style={{ fontSize: 12 }}
+                    onClick={() => setSelectedMember(members.find(m => m.userId === log.userId))}
+                  >
+                    <Users size={12} /> View Profile
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )
       )}
 
       {/* Activity Feed tab */}

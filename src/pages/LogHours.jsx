@@ -22,7 +22,7 @@ export default function LogHours() {
   const noteLen = form.notes.trim().length;
   const hasMedia = form.mediaFiles.length > 0;
 
-  // Verification status: detailed note or at least one media file.
+  // Evidence status: detailed note or at least one media file.
   const isVerified = noteLen >= 50 || hasMedia;
   const verificationPct = Math.min(100, Math.round(
     ((noteLen >= 50 ? 50 : noteLen) + (hasMedia ? 50 : 0)) / 100 * 100
@@ -34,9 +34,6 @@ export default function LogHours() {
     if (!form.hours || isNaN(form.hours) || Number(form.hours) <= 0) e.hours = 'Enter a valid number of hours.';
     if (Number(form.hours) > 24) e.hours = 'Hours cannot exceed 24.';
     if (noteLen < 20) e.notes = 'Please describe your progress (minimum 20 characters).';
-    if (!isVerified) {
-      e.verify = 'Verification required: write a detailed note (50+ characters) or attach at least one file.';
-    }
     return e;
   };
 
@@ -80,7 +77,8 @@ export default function LogHours() {
         <h2 style={{ fontSize: 24, fontWeight: 800, marginBottom: 8 }}>Hours Logged!</h2>
         <p style={{ color: 'var(--text-secondary)', fontSize: 15, marginBottom: 32, maxWidth: 360 }}>
           Your <strong style={{ color: 'var(--accent)' }}>{form.hours}h</strong> work session for{' '}
-          <strong style={{ color: 'var(--accent)' }}>{user?.team}</strong> has been recorded and verified.
+          <strong style={{ color: 'var(--accent)' }}>{user?.team}</strong>{' '}
+          {isVerified ? 'has been recorded and verified.' : 'has been recorded and is ready for executive review.'}
         </p>
         <div style={{ display: 'flex', gap: 12 }}>
           <button className="btn btn-ghost" onClick={() => { setSubmitted(false); setForm({ date: today, hours: '', notes: '', mediaFiles: [] }); }}>
@@ -113,14 +111,14 @@ export default function LogHours() {
         {/* Verification indicator */}
         <div className="card" style={{
           marginBottom: 20,
-          borderColor: isVerified ? 'rgba(96,165,250,0.42)' : errors.verify ? 'rgba(239,68,68,0.4)' : 'var(--border)',
+          borderColor: isVerified ? 'rgba(96,165,250,0.42)' : 'var(--border)',
           background: isVerified ? 'rgba(37,99,235,0.08)' : 'var(--bg-card)',
         }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <FileCheck size={16} color={isVerified ? 'var(--success)' : 'var(--text-muted)'} />
               <span style={{ fontSize: 13, fontWeight: 700, color: isVerified ? 'var(--success)' : 'var(--text-secondary)' }}>
-                {isVerified ? 'Entry Verified' : 'Verification Required'}
+                {isVerified ? 'Entry Verified' : 'Executive Review Needed'}
               </span>
             </div>
             <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{verificationPct}%</span>
@@ -141,9 +139,9 @@ export default function LogHours() {
               {hasMedia ? <CheckCircle size={13} /> : <AlertCircle size={13} />} Supporting file attached
             </span>
           </div>
-          {errors.verify && (
-            <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 6, color: 'var(--danger)', fontSize: 13 }}>
-              <AlertCircle size={14} /> {errors.verify}
+          {!isVerified && (
+            <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 6, color: 'var(--text-muted)', fontSize: 13 }}>
+              <AlertCircle size={14} /> Short entries can be approved later by an executive.
             </div>
           )}
         </div>
