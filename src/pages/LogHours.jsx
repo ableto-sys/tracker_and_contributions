@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import MediaUpload from '../components/MediaUpload';
+import { CONTRIBUTION_START_DATE, hasExecutiveAccess } from '../lib/trackerConfig';
 import { CheckCircle, Clock, ArrowLeft, AlertCircle, FileCheck } from 'lucide-react';
 
 export default function LogHours() {
@@ -22,15 +23,14 @@ export default function LogHours() {
   const noteLen = form.notes.trim().length;
   const hasMedia = form.mediaFiles.length > 0;
 
-  // Evidence status: detailed note or at least one media file.
-  const isVerified = noteLen >= 50 || hasMedia;
-  const verificationPct = Math.min(100, Math.round(
-    ((noteLen >= 50 ? 50 : noteLen) + (hasMedia ? 50 : 0)) / 100 * 100
-  ));
+  const isVerified = hasMedia;
+  const verificationPct = hasMedia ? 100 : 0;
+  const homePath = hasExecutiveAccess(user?.role) ? '/executive' : '/dashboard';
 
   const validate = () => {
     const e = {};
     if (!form.date) e.date = 'Date is required.';
+    if (form.date && form.date < CONTRIBUTION_START_DATE) e.date = 'Contributions are counted from May 5, 2026 onward.';
     if (!form.hours || isNaN(form.hours) || Number(form.hours) <= 0) e.hours = 'Enter a valid number of hours.';
     if (Number(form.hours) > 24) e.hours = 'Hours cannot exceed 24.';
     if (noteLen < 20) e.notes = 'Please describe your progress (minimum 20 characters).';
@@ -78,13 +78,13 @@ export default function LogHours() {
         <p style={{ color: 'var(--text-secondary)', fontSize: 15, marginBottom: 32, maxWidth: 360 }}>
           Your <strong style={{ color: 'var(--accent)' }}>{form.hours}h</strong> work session for{' '}
           <strong style={{ color: 'var(--accent)' }}>{user?.team}</strong>{' '}
-          {isVerified ? 'has been recorded and verified.' : 'has been recorded and is ready for executive review.'}
+          {isVerified ? 'has been recorded and verified.' : 'has been recorded and is waiting for file evidence or executive review.'}
         </p>
         <div style={{ display: 'flex', gap: 12 }}>
           <button className="btn btn-ghost" onClick={() => { setSubmitted(false); setForm({ date: today, hours: '', notes: '', mediaFiles: [] }); }}>
             Log More Hours
           </button>
-          <button className="btn btn-primary" onClick={() => navigate(user?.role === 'executive' ? '/executive' : '/dashboard')}>
+          <button className="btn btn-primary" onClick={() => navigate(homePath)}>
             Back to Dashboard
           </button>
         </div>
@@ -95,7 +95,7 @@ export default function LogHours() {
   return (
     <div className="page-content">
       <div style={{ maxWidth: 680, margin: '0 auto' }}>
-        <button className="btn btn-ghost btn-sm" onClick={() => navigate(user?.role === 'executive' ? '/executive' : '/dashboard')} style={{ marginBottom: 16 }}>
+        <button className="btn btn-ghost btn-sm" onClick={() => navigate(homePath)} style={{ marginBottom: 16 }}>
           <ArrowLeft size={14} /> Back
         </button>
 
@@ -118,7 +118,7 @@ export default function LogHours() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <FileCheck size={16} color={isVerified ? 'var(--success)' : 'var(--text-muted)'} />
               <span style={{ fontSize: 13, fontWeight: 700, color: isVerified ? 'var(--success)' : 'var(--text-secondary)' }}>
-                {isVerified ? 'Entry Verified' : 'Executive Review Needed'}
+                {isVerified ? 'File Evidence Attached' : 'File Evidence Needed'}
               </span>
             </div>
             <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{verificationPct}%</span>
@@ -132,16 +132,13 @@ export default function LogHours() {
             }} />
           </div>
           <div style={{ marginTop: 10, display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 5, color: noteLen >= 50 ? 'var(--success)' : 'var(--text-muted)' }}>
-              {noteLen >= 50 ? <CheckCircle size={13} /> : <AlertCircle size={13} />} Detailed note (50+ chars): {noteLen}/50
-            </span>
             <span style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 5, color: hasMedia ? 'var(--success)' : 'var(--text-muted)' }}>
-              {hasMedia ? <CheckCircle size={13} /> : <AlertCircle size={13} />} Supporting file attached
+              {hasMedia ? <CheckCircle size={13} /> : <AlertCircle size={13} />} Supporting file required for automatic verification
             </span>
           </div>
           {!isVerified && (
             <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 6, color: 'var(--text-muted)', fontSize: 13 }}>
-              <AlertCircle size={14} /> Short entries can be approved later by an executive.
+              <AlertCircle size={14} /> Entries without a file remain in the executive review queue.
             </div>
           )}
         </div>
@@ -151,7 +148,7 @@ export default function LogHours() {
             <div className="form-grid">
               <div className="form-group">
                 <label className="form-label">Date</label>
-                <input type="date" className="form-input" value={form.date} max={today} onChange={e => set('date', e.target.value)} />
+                <input type="date" className="form-input" value={form.date} min={CONTRIBUTION_START_DATE} max={today} onChange={e => set('date', e.target.value)} />
                 {errors.date && <span className="form-error">{errors.date}</span>}
               </div>
               <div className="form-group">

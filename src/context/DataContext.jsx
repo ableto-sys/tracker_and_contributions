@@ -1,7 +1,16 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { useAuth } from './AuthContext';
 import { supabase, isSupabaseConfigured, mediaBucket } from '../lib/supabaseClient';
-import { SEED_LOGS, SEED_USERS, sanitizeStoredMedia } from '../lib/trackerConfig';
+import {
+  CONTRIBUTION_START_DATE,
+  SEED_LOGS,
+  SEED_USERS,
+  TEAMS,
+  hasExecutiveAccess,
+  isCountableLog,
+  isSiteAdministrator,
+  sanitizeStoredMedia,
+} from '../lib/trackerConfig';
 
 const DataContext = createContext(null);
 
@@ -57,10 +66,11 @@ function localProfiles() {
 
 function initialLocalLogs() {
   const stored = localStorage.getItem('abl_logs');
-  if (stored) return JSON.parse(stored);
+  if (stored) return JSON.parse(stored).filter(isCountableLog);
 
-  localStorage.setItem('abl_logs', JSON.stringify(SEED_LOGS));
-  return SEED_LOGS;
+  const countableSeedLogs = SEED_LOGS.filter(isCountableLog);
+  localStorage.setItem('abl_logs', JSON.stringify(countableSeedLogs));
+  return countableSeedLogs;
 }
 
 async function signedMediaUrl(media) {
@@ -125,16 +135,18 @@ export function DataProvider({ children }) {
     setLoading(true);
     setSyncError('');
 
-    const profileQuery = user.role === 'executive'
+    const profileQuery = hasExecutiveAccess(user.role)
       ? supabase.from('profiles').select(PROFILE_SELECT).order('full_name')
       : supabase.from('profiles').select(PROFILE_SELECT).eq('id', user.id);
 
     let logQuery = supabase
       .from('work_logs')
       .select(LOG_SELECT)
+      .gte('work_date', CONTRIBUTION_START_DATE)
+      .order('work_date', { ascending: false })
       .order('created_at', { ascending: false });
 
-    if (user.role !== 'executive') {
+    if (!hasExecutiveAccess(user.role)) {
       logQuery = logQuery.eq('user_id', user.id);
     }
 
@@ -159,7 +171,7 @@ export function DataProvider({ children }) {
       avatarUrl: profile.avatar_url,
       profileCompleted: profile.profile_completed,
     })));
-    setLogs(normalizedLogs);
+    setLogs(normalizedLogs.filter(isCountableLog));
     setLoading(false);
   }, [user]);
 
@@ -240,9 +252,7 @@ export function DataProvider({ children }) {
     setSyncError('');
 
     if (isSupabaseConfigured) {
-      const verificationStatus = entry.mediaFiles?.length || entry.notes.trim().length >= 50
-        ? 'verified'
-        : 'needs_review';
+      const hasMedia = Boolean(entry.mediaFiles?.length);
 
       const { data: created, error } = await supabase
         .from('work_logs')
@@ -252,7 +262,7 @@ export function DataProvider({ children }) {
           work_date: entry.date,
           hours: entry.hours,
           notes: entry.notes,
-          verification_status: verificationStatus,
+          verification_status: 'needs_review',
         })
         .select('id')
         .single();
@@ -264,6 +274,14 @@ export function DataProvider({ children }) {
 
       try {
         await uploadMedia({ logId: created.id, files: entry.mediaFiles || [] });
+        if (hasMedia) {
+          const { error: verifyError } = await supabase
+            .from('work_logs')
+            .update({ verification_status: 'verified' })
+            .eq('id', created.id);
+
+          if (verifyError) throw verifyError;
+        }
         await loadSupabaseLogs();
       } catch (uploadError) {
         setSyncError(uploadError.message);
@@ -278,7 +296,7 @@ export function DataProvider({ children }) {
       ...entry,
       id: 'l' + Date.now(),
       userRole: user.role,
-      verificationStatus: entry.mediaFiles?.length || entry.notes.trim().length >= 50 ? 'verified' : 'needs_review',
+      verificationStatus: entry.mediaFiles?.length ? 'verified' : 'needs_review',
       submittedAt: new Date().toISOString(),
     };
 
@@ -318,7 +336,7 @@ export function DataProvider({ children }) {
   const verifyLog = async (id) => {
     setSyncError('');
 
-    if (user?.role !== 'executive') {
+    if (!hasExecutiveAccess(user?.role)) {
       return { error: 'Only executive board members can verify entries.' };
     }
 
@@ -345,16 +363,107 @@ export function DataProvider({ children }) {
     return { ok: true };
   };
 
-  const getLogsForUser = (userId) => logs.filter(log => log.userId === userId);
+  const updateMember = async ({ memberId, name, team, role }) => {
+    setSyncError('');
 
-  const getAllLogs = () => [...logs].sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt));
+    if (!isSiteAdministrator(user?.role)) {
+      return { error: 'Only the site administrator can update members.' };
+    }
+
+    const fullName = name.trim();
+    const safeRole = role === 'administrator' && memberId === user.id
+      ? 'administrator'
+      : role === 'executive' ? 'executive' : 'collaborator';
+
+    if (!fullName) return { error: 'Full name is required.' };
+    if (!TEAMS.includes(team)) return { error: 'Select a valid team.' };
+
+    if (isSupabaseConfigured) {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          full_name: fullName,
+          team,
+          role: safeRole,
+          profile_completed: true,
+        })
+        .eq('id', memberId);
+
+      if (error) {
+        setSyncError(error.message);
+        return { error: error.message };
+      }
+
+      await loadSupabaseLogs();
+      return { ok: true };
+    }
+
+    const users = JSON.parse(localStorage.getItem('abl_users') || '[]');
+    const nextUsers = users.map(stored => (
+      stored.id === memberId
+        ? { ...stored, name: fullName, team, role: safeRole, profileCompleted: true }
+        : stored
+    ));
+
+    localStorage.setItem('abl_users', JSON.stringify(nextUsers));
+    loadLocal();
+    return { ok: true };
+  };
+
+  const removeMember = async (memberId) => {
+    setSyncError('');
+
+    if (!isSiteAdministrator(user?.role)) {
+      return { error: 'Only the site administrator can remove members.' };
+    }
+
+    if (memberId === user.id) {
+      return { error: 'You cannot remove your own administrator profile.' };
+    }
+
+    if (isSupabaseConfigured) {
+      const paths = logs
+        .filter(log => log.userId === memberId)
+        .flatMap(log => log.mediaFiles?.map(file => file.path).filter(Boolean) || []);
+
+      if (paths.length) {
+        await supabase.storage.from(mediaBucket).remove(paths);
+      }
+
+      const { error } = await supabase
+        .from('profiles')
+        .delete()
+        .eq('id', memberId);
+
+      if (error) {
+        setSyncError(error.message);
+        return { error: error.message };
+      }
+
+      await loadSupabaseLogs();
+      return { ok: true };
+    }
+
+    const users = JSON.parse(localStorage.getItem('abl_users') || '[]').filter(stored => stored.id !== memberId);
+    localStorage.setItem('abl_users', JSON.stringify(users));
+    saveLocal(logs.filter(log => log.userId !== memberId));
+    loadLocal();
+    return { ok: true };
+  };
+
+  const getLogsForUser = (userId) => logs.filter(log => log.userId === userId && isCountableLog(log));
+
+  const getAllLogs = () => [...logs]
+    .filter(isCountableLog)
+    .sort((a, b) => new Date(b.date) - new Date(a.date) || new Date(b.submittedAt) - new Date(a.submittedAt));
 
   const getStats = () => {
-    const total = logs.reduce((sum, log) => sum + Number(log.hours), 0);
+    const countableLogs = logs.filter(isCountableLog);
+    const total = countableLogs.reduce((sum, log) => sum + Number(log.hours), 0);
     const byTeam = {};
     const byUser = {};
 
-    logs.forEach(log => {
+    countableLogs.forEach(log => {
       byTeam[log.team] = (byTeam[log.team] || 0) + Number(log.hours);
 
       if (!byUser[log.userId]) {
@@ -371,7 +480,7 @@ export function DataProvider({ children }) {
       byUser[log.userId].entries += 1;
     });
 
-    return { total, byTeam, byUser, count: logs.length };
+    return { total, byTeam, byUser, count: countableLogs.length };
   };
 
   const getMembers = () => {
@@ -415,6 +524,8 @@ export function DataProvider({ children }) {
     addLog,
     deleteLog,
     verifyLog,
+    updateMember,
+    removeMember,
     refreshLogs: isSupabaseConfigured ? loadSupabaseLogs : loadLocal,
     getLogsForUser,
     getAllLogs,

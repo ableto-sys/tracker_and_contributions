@@ -98,7 +98,7 @@ export default function Dashboard() {
         </div>
       ) : (
         <div className="logs-list">
-          {[...myLogs].sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt)).map(log => (
+          {[...myLogs].sort((a, b) => new Date(b.date) - new Date(a.date) || new Date(b.submittedAt) - new Date(a.submittedAt)).map(log => (
             <LogCard key={log.id} log={log} />
           ))}
         </div>

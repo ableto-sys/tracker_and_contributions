@@ -7,13 +7,14 @@ import Dashboard from './pages/Dashboard';
 import LogHours from './pages/LogHours';
 import ExecutiveDashboard from './pages/ExecutiveDashboard';
 import Profile from './pages/Profile';
+import { hasExecutiveAccess } from './lib/trackerConfig';
 
 function ProtectedRoute({ children, executiveOnly = false, requireCompleteProfile = true }) {
   const { user, loading } = useAuth();
   if (loading) return <div className="loading-screen">Loading workspace...</div>;
   if (!user) return <Navigate to="/login" replace />;
   if (requireCompleteProfile && user.profileCompleted === false) return <Navigate to="/profile" replace />;
-  if (executiveOnly && user.role !== 'executive') return <Navigate to="/dashboard" replace />;
+  if (executiveOnly && !hasExecutiveAccess(user.role)) return <Navigate to="/dashboard" replace />;
   return children;
 }
 
@@ -29,7 +30,7 @@ function AppShell() {
       {user && <Navbar />}
       <Routes>
         <Route path="/login" element={user
-          ? <Navigate to={user.profileCompleted === false ? '/profile' : user.role === 'executive' ? '/executive' : '/dashboard'} replace />
+          ? <Navigate to={user.profileCompleted === false ? '/profile' : hasExecutiveAccess(user.role) ? '/executive' : '/dashboard'} replace />
           : <Login />}
         />
         <Route path="/dashboard" element={
@@ -46,7 +47,7 @@ function AppShell() {
         } />
         <Route path="*" element={
           user
-            ? <Navigate to={user.profileCompleted === false ? '/profile' : user.role === 'executive' ? '/executive' : '/dashboard'} replace />
+            ? <Navigate to={user.profileCompleted === false ? '/profile' : hasExecutiveAccess(user.role) ? '/executive' : '/dashboard'} replace />
             : <Navigate to="/login" replace />
         } />
       </Routes>

@@ -1,9 +1,9 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
-import { SEED_USERS, TEAMS, getRoleForEmail } from '../lib/trackerConfig';
+import { SEED_USERS, TEAMS, getRoleForEmail, hasExecutiveAccess, isSiteAdministrator } from '../lib/trackerConfig';
 
 const AuthContext = createContext(null);
-const seedVersion = 'v5';
+const seedVersion = 'v6';
 
 function fullNameFromAuthUser(authUser) {
   return (
@@ -260,7 +260,9 @@ export function AuthProvider({ children }) {
     if (!user) return { error: 'You must be signed in to update your profile.' };
 
     const fullName = name.trim();
-    const safeRole = role === 'executive' ? 'executive' : 'collaborator';
+    const safeRole = isSiteAdministrator(user.role)
+      ? 'administrator'
+      : hasExecutiveAccess(role) ? 'executive' : 'collaborator';
     if (!fullName) return { error: 'Full name is required.' };
     if (!TEAMS.includes(team)) return { error: 'Select a valid team.' };
 

@@ -9,7 +9,7 @@ npm install
 npm run dev
 ```
 
-Demo executive account:
+Demo administrator account:
 
 - Email: `emidaz138@gmail.com`
 - Password: `ableto2026`
@@ -36,10 +36,11 @@ VITE_SUPABASE_MEDIA_BUCKET=work-media
 ## Backend Model
 
 - `profiles`: User profile, team, role, executive status, and profile completion state.
-- `work_logs`: Logged hours, notes, verification status, and team snapshot.
+- `work_logs`: Logged hours, notes, verification status, and team snapshot. Reporting counts work dated May 5, 2026 onward.
 - `work_log_media`: Private file metadata for screenshots, PDFs, photos, and videos.
 - `work-media`: Private Supabase Storage bucket with policies for owners and executives.
 - `executive_email_allowlist`: Emails that receive executive board access automatically. The Profile screen also includes a temporary board-only access switch for the current rollout.
+- `site_admin_email_allowlist`: Emails that receive site administrator access for member management.
 
 ## Scripts
 

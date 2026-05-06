@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AlertCircle, CheckCircle, ShieldCheck, UserRoundCog } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { TEAMS } from '../lib/trackerConfig';
+import { TEAMS, hasExecutiveAccess, isSiteAdministrator } from '../lib/trackerConfig';
 
 export default function Profile() {
   const { user, updateProfile } = useAuth();
@@ -17,7 +17,8 @@ export default function Profile() {
   const [saved, setSaved] = useState(false);
 
   const needsSetup = user?.profileCompleted === false;
-  const isExecutive = form.role === 'executive';
+  const isAdmin = isSiteAdministrator(user?.role);
+  const isExecutive = hasExecutiveAccess(form.role);
 
   const set = (key, value) => {
     setForm(current => ({ ...current, [key]: value }));
@@ -51,7 +52,7 @@ export default function Profile() {
 
     setSaved(true);
     if (needsSetup) {
-      navigate(result.user?.role === 'executive' ? '/executive' : '/dashboard', { replace: true });
+      navigate(hasExecutiveAccess(result.user?.role) ? '/executive' : '/dashboard', { replace: true });
     }
   };
 
@@ -104,21 +105,25 @@ export default function Profile() {
             </div>
 
             <div className="form-group">
-              <label className="form-label">Executive Board Access</label>
-              <button
-                type="button"
-                className={`switch-row ${isExecutive ? 'active' : ''}`}
-                onClick={() => set('role', isExecutive ? 'collaborator' : 'executive')}
-                aria-pressed={isExecutive}
-              >
-                <span className="switch-track"><span className="switch-thumb" /></span>
-                <span className="switch-copy">
-                  <strong>{isExecutive ? 'Executive Board' : 'Standard Member'}</strong>
-                  <span>{isExecutive ? 'Team overview enabled' : 'Personal hours only'}</span>
-                </span>
-              </button>
+              <label className="form-label">{isAdmin ? 'Site Access' : 'Executive Board Access'}</label>
+              {isAdmin ? (
+                <input className="form-input" value="Site Administrator" disabled />
+              ) : (
+                <button
+                  type="button"
+                  className={`switch-row ${isExecutive ? 'active' : ''}`}
+                  onClick={() => set('role', isExecutive ? 'collaborator' : 'executive')}
+                  aria-pressed={isExecutive}
+                >
+                  <span className="switch-track"><span className="switch-thumb" /></span>
+                  <span className="switch-copy">
+                    <strong>{isExecutive ? 'Executive Board' : 'Standard Member'}</strong>
+                    <span>{isExecutive ? 'Team overview enabled' : 'Personal hours only'}</span>
+                  </span>
+                </button>
+              )}
               <span className="form-hint">
-                Temporary board-only control for this rollout.
+                {isAdmin ? 'Administrative access is active.' : 'Temporary board-only control for this rollout.'}
               </span>
             </div>
 
@@ -126,7 +131,9 @@ export default function Profile() {
               <ShieldCheck size={15} style={{ marginTop: 2 }} />
               <span>
                 {isExecutive
-                  ? 'You can log your own hours, review team activity, and see the executive overview.'
+                  ? isAdmin
+                    ? 'You can manage member records, verify entries, and review team activity.'
+                    : 'You can log your own hours, review team activity, and see the executive overview.'
                   : 'You can log and manage your own hours. The executive overview is only available to executive board members.'}
               </span>
             </div>
@@ -143,7 +150,7 @@ export default function Profile() {
                 <button
                   type="button"
                   className="btn btn-ghost"
-                  onClick={() => navigate(user?.role === 'executive' ? '/executive' : '/dashboard')}
+                  onClick={() => navigate(hasExecutiveAccess(user?.role) ? '/executive' : '/dashboard')}
                 >
                   Back
                 </button>

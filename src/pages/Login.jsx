@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { TEAMS } from '../lib/trackerConfig';
+import { TEAMS, hasExecutiveAccess } from '../lib/trackerConfig';
 import { Eye, EyeOff, Globe2, LogIn, Mail } from 'lucide-react';
 
 export default function Login() {
@@ -36,7 +36,7 @@ export default function Login() {
     if (result.error) { setError(result.error); return; }
     if (result.pendingConfirmation) { setInfo(result.message); return; }
 
-    navigate(result.user?.role === 'executive' ? '/executive' : '/dashboard');
+    navigate(hasExecutiveAccess(result.user?.role) ? '/executive' : '/dashboard');
   };
 
   const handleGoogle = async () => {

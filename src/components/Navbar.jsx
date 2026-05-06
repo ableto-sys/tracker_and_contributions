@@ -1,6 +1,7 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getBackendLabel } from '../lib/supabaseClient';
+import { hasExecutiveAccess, isSiteAdministrator } from '../lib/trackerConfig';
 import { BarChart3, Clock, DatabaseZap, LayoutDashboard, LogOut, UserRoundCog } from 'lucide-react';
 
 export default function Navbar() {
@@ -11,6 +12,7 @@ export default function Navbar() {
   const isActive = (path) => location.pathname === path;
   const initials = user?.name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() || '?';
   const handleLogout = () => { logout(); navigate('/login'); };
+  const canSeeExecutive = hasExecutiveAccess(user?.role);
 
   return (
     <nav className="navbar">
@@ -29,11 +31,11 @@ export default function Navbar() {
           <LayoutDashboard size={15} /> My Dashboard
         </button>
 
-        {/* Log Hours is always visible and highlighted for executives. */}
+        {/* Log Hours is always visible and highlighted for board users. */}
         <button
           onClick={() => navigate('/log')}
           className={`navbar-link ${isActive('/log') ? 'active' : ''}`}
-          style={user?.role === 'executive' && !isActive('/log') ? {
+          style={canSeeExecutive && !isActive('/log') ? {
             background: 'rgba(37,99,235,0.15)',
             color: 'var(--accent)',
             border: '1px solid rgba(37,99,235,0.3)',
@@ -42,7 +44,7 @@ export default function Navbar() {
           <Clock size={15} /> Log Hours
         </button>
 
-        {user?.role === 'executive' && (
+        {canSeeExecutive && (
           <button
             className={`navbar-link ${isActive('/executive') ? 'active' : ''}`}
             onClick={() => navigate('/executive')}
@@ -69,8 +71,10 @@ export default function Navbar() {
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <div className="navbar-user-name">{user?.name}</div>
-              {user?.role === 'executive' && (
-                <span className="badge badge-exec" style={{ fontSize: 10, padding: '1px 7px' }}>Exec Board</span>
+              {canSeeExecutive && (
+                <span className="badge badge-exec" style={{ fontSize: 10, padding: '1px 7px' }}>
+                  {isSiteAdministrator(user?.role) ? 'Site Admin' : 'Exec Board'}
+                </span>
               )}
             </div>
             <div className="navbar-user-role">{user?.team}</div>

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { AlertCircle, Calendar, CheckCircle, Clock, FileText, Image, Film, File, Trash2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
-import { TEAM_META } from '../lib/trackerConfig';
+import { TEAM_META, hasExecutiveAccess } from '../lib/trackerConfig';
 
 function MediaIcon({ type }) {
   if (type?.startsWith('image')) return <Image size={13} />;
@@ -26,9 +26,9 @@ export default function LogCard({ log, showUser = false }) {
   const images = log.mediaFiles?.filter(f => f.type?.startsWith('image')) || [];
   const others = log.mediaFiles?.filter(f => !f.type?.startsWith('image')) || [];
 
-  const canDelete = user?.id === log.userId || user?.role === 'executive';
+  const canDelete = user?.id === log.userId || hasExecutiveAccess(user?.role);
   const needsReview = log.verificationStatus === 'needs_review';
-  const canVerify = user?.role === 'executive' && needsReview;
+  const canVerify = hasExecutiveAccess(user?.role) && needsReview;
 
   const handleVerify = async () => {
     setReviewError('');

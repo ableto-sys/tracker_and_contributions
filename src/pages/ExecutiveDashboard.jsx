@@ -3,13 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import LogCard from '../components/LogCard';
-import { TEAM_META, TEAM_OPTIONS } from '../lib/trackerConfig';
+import { TEAM_META, TEAM_OPTIONS, TEAMS, hasExecutiveAccess, isSiteAdministrator } from '../lib/trackerConfig';
 import { getBackendLabel } from '../lib/supabaseClient';
 import {
   Clock, Users, BarChart3, Search, Download,
   ArrowLeft, Calendar, TrendingUp, FileCheck, Flame,
   Image, ChevronRight, Activity, AlertTriangle, ShieldCheck,
-  DatabaseZap, RefreshCw
+  DatabaseZap, RefreshCw, Save, Trash2
 } from 'lucide-react';
 
 function getInitials(name) {
@@ -22,6 +22,10 @@ function formatDate(d) {
 
 function isLogVerified(log) {
   return log.verificationStatus !== 'needs_review';
+}
+
+function memberAccessLabel(role) {
+  return role === 'administrator' ? 'Site Administrator' : role === 'executive' ? 'Executive Board' : 'Standard Member';
 }
 
 function weeksAgo(weeksBack) {
@@ -200,7 +204,7 @@ function MemberDetail({ member, logs, onBack }) {
           <div style={{ flex: 1 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
               <h2 style={{ fontSize: 22, fontWeight: 800, margin: 0 }}>{member.name}</h2>
-              {member.role === 'executive' && (
+              {hasExecutiveAccess(member.role) && (
                 <span className="badge badge-exec">Exec Board</span>
               )}
             </div>
@@ -301,7 +305,7 @@ function MemberCard({ member, logs, onClick }) {
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <span style={{ fontWeight: 700, fontSize: 15, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{member.name}</span>
-            {member.role === 'executive' && <span className="badge badge-exec" style={{ fontSize: 10, padding: '1px 6px' }}>Exec Board</span>}
+            {hasExecutiveAccess(member.role) && <span className="badge badge-exec" style={{ fontSize: 10, padding: '1px 6px' }}>Exec Board</span>}
           </div>
           <span style={{ fontSize: 12, color: meta.color }}>{member.team}</span>
         </div>
@@ -338,10 +342,120 @@ function MemberCard({ member, logs, onClick }) {
   );
 }
 
+function AdminMemberCard({ member, currentUserId, onSave, onRemove }) {
+  const [draft, setDraft] = useState({
+    name: member.name || '',
+    team: member.team || TEAMS[0],
+    role: member.role || 'collaborator',
+  });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [saved, setSaved] = useState(false);
+  const isSelf = member.userId === currentUserId;
+  const isAdminMember = member.role === 'administrator';
+
+  const set = (key, value) => {
+    setDraft(current => ({ ...current, [key]: value }));
+    setSaved(false);
+    setError('');
+  };
+
+  const submit = async () => {
+    setSaving(true);
+    setError('');
+    const result = await onSave({ memberId: member.userId, ...draft });
+    setSaving(false);
+
+    if (result.error) {
+      setError(result.error);
+      return;
+    }
+
+    setSaved(true);
+  };
+
+  const remove = async () => {
+    if (!window.confirm('Remove this member and their logged hours?')) return;
+
+    setSaving(true);
+    setError('');
+    const result = await onRemove(member.userId);
+    setSaving(false);
+
+    if (result.error) setError(result.error);
+  };
+
+  return (
+    <div className="card card-sm">
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
+        <div className="avatar">{getInitials(member.name)}</div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <strong style={{ fontSize: 14 }}>{member.name}</strong>
+            <span className="badge badge-exec" style={{ fontSize: 10 }}>{memberAccessLabel(member.role)}</span>
+          </div>
+          <div style={{ color: 'var(--text-muted)', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis' }}>{member.email}</div>
+        </div>
+      </div>
+
+      <div className="form-grid" style={{ gap: 10 }}>
+        <div className="form-group">
+          <label className="form-label">Name</label>
+          <input className="form-input" value={draft.name} onChange={event => set('name', event.target.value)} />
+        </div>
+        <div className="form-group">
+          <label className="form-label">Team</label>
+          <select className="form-select" value={draft.team} onChange={event => set('team', event.target.value)}>
+            {TEAMS.map(team => <option key={team} value={team}>{team}</option>)}
+          </select>
+        </div>
+      </div>
+
+      <div className="form-group" style={{ marginTop: 10 }}>
+        <label className="form-label">Access</label>
+        <select
+          className="form-select"
+          value={draft.role}
+          onChange={event => set('role', event.target.value)}
+          disabled={isAdminMember}
+        >
+          {isAdminMember && <option value="administrator">Site Administrator</option>}
+          <option value="collaborator">Standard Member</option>
+          <option value="executive">Executive Board</option>
+        </select>
+      </div>
+
+      {error && <div className="auth-error" style={{ marginTop: 10 }}>{error}</div>}
+      {saved && <div className="auth-info" style={{ marginTop: 10 }}>Member updated.</div>}
+
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
+        <button className="btn btn-ghost btn-sm" onClick={submit} disabled={saving}>
+          <Save size={13} /> {saving ? 'Saving...' : 'Save'}
+        </button>
+        {!isSelf && (
+          <button className="btn btn-danger btn-sm" onClick={remove} disabled={saving}>
+            <Trash2 size={13} /> Remove
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // Main executive dashboard.
 export default function ExecutiveDashboard() {
   const { user } = useAuth();
-  const { getAllLogs, getStats, getLogsForUser, getMembers, refreshLogs, loading, syncError } = useData();
+  const {
+    getAllLogs,
+    getStats,
+    getLogsForUser,
+    getMembers,
+    refreshLogs,
+    loading,
+    syncError,
+    updateMember,
+    removeMember,
+  } = useData();
   const navigate = useNavigate();
   const [teamFilter, setTeamFilter] = useState('All Teams');
   const [search, setSearch] = useState('');
@@ -351,6 +465,7 @@ export default function ExecutiveDashboard() {
   const stats = getStats();
   const allLogs = getAllLogs();
   const members = getMembers();
+  const isAdmin = isSiteAdministrator(user?.role);
   const now = new Date();
   const daysAgo = (days) => {
     const date = new Date(now);
@@ -379,8 +494,8 @@ export default function ExecutiveDashboard() {
   const latestActivityByUser = new Map();
   allLogs.forEach(log => {
     const current = latestActivityByUser.get(log.userId);
-    const submitted = new Date(log.submittedAt);
-    if (!current || submitted > current) latestActivityByUser.set(log.userId, submitted);
+    const workDate = new Date(log.date);
+    if (!current || workDate > current) latestActivityByUser.set(log.userId, workDate);
   });
 
   const attentionMembers = members.filter(member => {
@@ -590,6 +705,7 @@ export default function ExecutiveDashboard() {
           { key: 'review',    label: `Review Queue (${pendingReviewLogs.length})` },
           { key: 'feed',      label: 'Activity Feed' },
           { key: 'ranking', label: 'Hours Ranking' },
+          ...(isAdmin ? [{ key: 'admin', label: 'Administration' }] : []),
         ].map(t => (
           <button key={t.key} className={`tab ${tab === t.key ? 'active' : ''}`} onClick={() => setTab(t.key)}>
             {t.label}
@@ -660,6 +776,21 @@ export default function ExecutiveDashboard() {
             <div className="empty-state"><Users size={48} /><h3>No members found</h3></div>
           )}
         </>
+      )}
+
+      {/* Administration tab */}
+      {tab === 'admin' && isAdmin && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px,1fr))', gap: 16 }}>
+          {members.map(member => (
+            <AdminMemberCard
+              key={member.userId}
+              member={member}
+              currentUserId={user?.id}
+              onSave={updateMember}
+              onRemove={removeMember}
+            />
+          ))}
+        </div>
       )}
 
       {/* Review queue tab */}
@@ -764,7 +895,7 @@ export default function ExecutiveDashboard() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <span style={{ fontWeight: 700, fontSize: 15 }}>{m.name}</span>
                       <span style={{ fontSize: 12, color: meta.color }}>{m.team}</span>
-                      {m.role === 'executive' && <span className="badge badge-exec" style={{ fontSize: 10 }}>Exec Board</span>}
+                      {hasExecutiveAccess(m.role) && <span className="badge badge-exec" style={{ fontSize: 10 }}>Exec Board</span>}
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                       <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{m.entries} entries</span>

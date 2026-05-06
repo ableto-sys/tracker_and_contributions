@@ -5,9 +5,18 @@ create table if not exists public.executive_email_allowlist (
   added_at timestamptz not null default now()
 );
 
+create table if not exists public.site_admin_email_allowlist (
+  email text primary key,
+  added_at timestamptz not null default now()
+);
+
+insert into public.site_admin_email_allowlist (email)
+values
+  ('emidaz138@gmail.com')
+on conflict (email) do nothing;
+
 insert into public.executive_email_allowlist (email)
 values
-  ('emidaz138@gmail.com'),
   ('exec@ableto.com')
 on conflict (email) do nothing;
 
@@ -15,7 +24,7 @@ create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   email text not null unique,
   full_name text not null,
-  role text not null default 'collaborator' check (role in ('executive', 'collaborator')),
+  role text not null default 'collaborator' check (role in ('administrator', 'executive', 'collaborator')),
   team text not null default 'Software Engineering',
   avatar_url text,
   profile_completed boolean not null default false,
@@ -25,6 +34,13 @@ create table if not exists public.profiles (
 
 alter table public.profiles
 add column if not exists profile_completed boolean not null default false;
+
+alter table public.profiles
+drop constraint if exists profiles_role_check;
+
+alter table public.profiles
+add constraint profiles_role_check
+check (role in ('administrator', 'executive', 'collaborator'));
 
 create table if not exists public.work_logs (
   id uuid primary key default gen_random_uuid(),
@@ -53,7 +69,11 @@ create index if not exists work_logs_work_date_idx on public.work_logs(work_date
 create index if not exists work_logs_team_idx on public.work_logs(team);
 create index if not exists work_log_media_log_id_idx on public.work_log_media(work_log_id);
 
+delete from public.work_logs
+where work_date < date '2026-05-05';
+
 alter table public.executive_email_allowlist enable row level security;
+alter table public.site_admin_email_allowlist enable row level security;
 alter table public.profiles enable row level security;
 alter table public.work_logs enable row level security;
 alter table public.work_log_media enable row level security;
@@ -64,6 +84,28 @@ language plpgsql
 as $$
 begin
   new.updated_at = now();
+  return new;
+end;
+$$;
+
+create or replace function public.enforce_work_log_verification()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if new.verification_status = 'verified'
+    and not public.is_executive(auth.uid())
+    and not exists (
+      select 1
+      from public.work_log_media media
+      where media.work_log_id = new.id
+    )
+  then
+    new.verification_status = 'needs_review';
+  end if;
+
   return new;
 end;
 $$;
@@ -82,6 +124,35 @@ as $$
   );
 $$;
 
+create or replace function public.is_site_admin_email(email_to_check text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.site_admin_email_allowlist allowlist
+    where lower(allowlist.email) = lower(email_to_check)
+  );
+$$;
+
+create or replace function public.is_site_admin(user_id_to_check uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.profiles profile
+    where profile.id = user_id_to_check
+      and profile.role = 'administrator'
+  );
+$$;
+
 create or replace function public.is_executive(user_id_to_check uuid)
 returns boolean
 language sql
@@ -93,7 +164,7 @@ as $$
     select 1
     from public.profiles profile
     where profile.id = user_id_to_check
-      and profile.role = 'executive'
+      and profile.role in ('administrator', 'executive')
   );
 $$;
 
@@ -105,6 +176,7 @@ security definer
 set search_path = public
 as $$
   select case
+    when public.is_site_admin_email(email_to_check) then 'administrator'
     when public.is_executive_email(email_to_check) then 'executive'
     else 'collaborator'
   end;
@@ -163,12 +235,24 @@ create trigger work_logs_updated_at
 before update on public.work_logs
 for each row execute function public.handle_updated_at();
 
+drop trigger if exists work_logs_verification_guard on public.work_logs;
+create trigger work_logs_verification_guard
+before insert or update of verification_status on public.work_logs
+for each row execute function public.enforce_work_log_verification();
+
+update public.profiles
+set role = 'administrator'
+where lower(email) = 'emidaz138@gmail.com';
+
 drop policy if exists "Executive allowlist is visible to executives" on public.executive_email_allowlist;
+drop policy if exists "Site admin allowlist is visible to administrators" on public.site_admin_email_allowlist;
 drop policy if exists "Profiles visible to owner and executives" on public.profiles;
 drop policy if exists "Profiles can be inserted by their owner" on public.profiles;
 drop policy if exists "Profiles can be updated by owner without privilege escalation" on public.profiles;
 drop policy if exists "Profiles can be updated by owner" on public.profiles;
 drop policy if exists "Profiles can be managed by executives" on public.profiles;
+drop policy if exists "Profiles can be managed by administrators" on public.profiles;
+drop policy if exists "Profiles can be deleted by administrators" on public.profiles;
 drop policy if exists "Work logs visible to owner and executives" on public.work_logs;
 drop policy if exists "Work logs inserted by owner" on public.work_logs;
 drop policy if exists "Work logs updated by owner and executives" on public.work_logs;
@@ -185,6 +269,12 @@ on public.executive_email_allowlist
 for select
 to authenticated
 using (public.is_executive(auth.uid()));
+
+create policy "Site admin allowlist is visible to administrators"
+on public.site_admin_email_allowlist
+for select
+to authenticated
+using (public.is_site_admin(auth.uid()));
 
 create policy "Profiles visible to owner and executives"
 on public.profiles
@@ -211,12 +301,18 @@ with check (
   and role in ('executive', 'collaborator')
 );
 
-create policy "Profiles can be managed by executives"
+create policy "Profiles can be managed by administrators"
 on public.profiles
 for update
 to authenticated
-using (public.is_executive(auth.uid()))
-with check (true);
+using (public.is_site_admin(auth.uid()))
+with check (role <> 'administrator' or id = auth.uid());
+
+create policy "Profiles can be deleted by administrators"
+on public.profiles
+for delete
+to authenticated
+using (public.is_site_admin(auth.uid()));
 
 create policy "Work logs visible to owner and executives"
 on public.work_logs
@@ -345,4 +441,6 @@ using (
 
 grant execute on function public.is_executive(uuid) to authenticated;
 grant execute on function public.is_executive_email(text) to authenticated;
+grant execute on function public.is_site_admin(uuid) to authenticated;
+grant execute on function public.is_site_admin_email(text) to authenticated;
 grant execute on function public.role_for_email(text) to authenticated;
