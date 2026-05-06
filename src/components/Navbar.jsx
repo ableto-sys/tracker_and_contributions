@@ -70,7 +70,7 @@ export default function Navbar() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <div className="navbar-user-name">{user?.name}</div>
               {user?.role === 'executive' && (
-                <span className="badge badge-exec" style={{ fontSize: 10, padding: '1px 7px' }}>Lead</span>
+                <span className="badge badge-exec" style={{ fontSize: 10, padding: '1px 7px' }}>Exec Board</span>
               )}
             </div>
             <div className="navbar-user-role">{user?.team}</div>

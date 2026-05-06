@@ -13,7 +13,7 @@ export default function Login() {
   const [info, setInfo] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const [form, setForm] = useState({ name: '', email: '', password: '', role: 'collaborator', team: TEAMS[0] });
+  const [form, setForm] = useState({ name: '', email: '', password: '', team: TEAMS[0] });
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
@@ -117,13 +117,10 @@ export default function Login() {
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">Role</label>
-                  <select className="form-select" value={form.role} onChange={e => set('role', e.target.value)}>
-                    <option value="collaborator">Collaborator</option>
-                    <option value="executive">Executive / Team Lead</option>
-                  </select>
+                  <label className="form-label">Executive Board Access</label>
+                  <input className="form-input" value="Assigned by AbleTo policy" disabled />
                   <span className="form-hint">
-                    Executives can log hours, review activity, and export board reports.
+                    Board access is based on the executive email allowlist, not a team title.
                   </span>
                 </div>
               </>

@@ -3,7 +3,7 @@ import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
 import { SEED_USERS, TEAMS, getRoleForEmail } from '../lib/trackerConfig';
 
 const AuthContext = createContext(null);
-const seedVersion = 'v4';
+const seedVersion = 'v5';
 
 function fullNameFromAuthUser(authUser) {
   return (
@@ -173,11 +173,11 @@ export function AuthProvider({ children }) {
     return { ok: true, user: session };
   };
 
-  const register = async ({ name, email, password, role, team }) => {
+  const register = async ({ name, email, password, team }) => {
     setAuthError('');
 
     if (isSupabaseConfigured) {
-      const safeRole = getRoleForEmail(email, role || 'collaborator');
+      const safeRole = getRoleForEmail(email);
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -212,7 +212,7 @@ export function AuthProvider({ children }) {
     const users = getUsers();
     if (users.find(u => u.email === email)) return { error: 'Email already registered.' };
 
-    const safeRole = getRoleForEmail(email, role || 'collaborator');
+    const safeRole = getRoleForEmail(email);
     const newUser = {
       id: 'u' + Date.now(),
       name,

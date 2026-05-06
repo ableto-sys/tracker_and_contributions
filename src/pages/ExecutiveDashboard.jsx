@@ -201,7 +201,7 @@ function MemberDetail({ member, logs, onBack }) {
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
               <h2 style={{ fontSize: 22, fontWeight: 800, margin: 0 }}>{member.name}</h2>
               {member.role === 'executive' && (
-                <span className="badge badge-exec">Lead</span>
+                <span className="badge badge-exec">Exec Board</span>
               )}
             </div>
             <span className={`badge`} style={{ marginTop: 6, background: meta.bg, color: meta.color, border: `1px solid ${meta.color}44` }}>
@@ -301,7 +301,7 @@ function MemberCard({ member, logs, onClick }) {
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <span style={{ fontWeight: 700, fontSize: 15, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{member.name}</span>
-            {member.role === 'executive' && <span className="badge badge-exec" style={{ fontSize: 10, padding: '1px 6px' }}>Lead</span>}
+            {member.role === 'executive' && <span className="badge badge-exec" style={{ fontSize: 10, padding: '1px 6px' }}>Exec Board</span>}
           </div>
           <span style={{ fontSize: 12, color: meta.color }}>{member.team}</span>
         </div>
@@ -587,7 +587,7 @@ export default function ExecutiveDashboard() {
           { key: 'overview',  label: 'Team Breakdown' },
           { key: 'members',   label: `Members (${members.length})` },
           { key: 'feed',      label: 'Activity Feed' },
-          { key: 'leaderboard', label: 'Leaderboard' },
+          { key: 'ranking', label: 'Hours Ranking' },
         ].map(t => (
           <button key={t.key} className={`tab ${tab === t.key ? 'active' : ''}`} onClick={() => setTab(t.key)}>
             {t.label}
@@ -700,8 +700,8 @@ export default function ExecutiveDashboard() {
         </>
       )}
 
-      {/* Leaderboard tab */}
-      {tab === 'leaderboard' && (
+      {/* Hours ranking tab */}
+      {tab === 'ranking' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {members.length === 0 ? (
             <div className="empty-state"><Users size={48} /><h3>No contributors yet</h3></div>
@@ -733,7 +733,7 @@ export default function ExecutiveDashboard() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <span style={{ fontWeight: 700, fontSize: 15 }}>{m.name}</span>
                       <span style={{ fontSize: 12, color: meta.color }}>{m.team}</span>
-                      {m.role === 'executive' && <span className="badge badge-exec" style={{ fontSize: 10 }}>Lead</span>}
+                      {m.role === 'executive' && <span className="badge badge-exec" style={{ fontSize: 10 }}>Exec Board</span>}
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                       <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{m.entries} entries</span>

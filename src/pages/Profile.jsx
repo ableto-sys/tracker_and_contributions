@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlertCircle, CheckCircle, UserRoundCog } from 'lucide-react';
+import { AlertCircle, CheckCircle, ShieldCheck, UserRoundCog } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { TEAMS } from '../lib/trackerConfig';
 
@@ -16,6 +16,7 @@ export default function Profile() {
   const [saved, setSaved] = useState(false);
 
   const needsSetup = user?.profileCompleted === false;
+  const isExecutive = user?.role === 'executive';
 
   const set = (key, value) => {
     setForm(current => ({ ...current, [key]: value }));
@@ -101,9 +102,20 @@ export default function Profile() {
             </div>
 
             <div className="form-group">
-              <label className="form-label">Role</label>
-              <input className="form-input" value={user?.role === 'executive' ? 'Executive / Team Lead' : 'Collaborator'} disabled />
-              <span className="form-hint">Role is assigned by AbleTo policy.</span>
+              <label className="form-label">Executive Board Access</label>
+              <input className="form-input" value={isExecutive ? 'Enabled' : 'Standard member'} disabled />
+              <span className="form-hint">
+                Board access is assigned from the AbleTo executive email allowlist.
+              </span>
+            </div>
+
+            <div className="auth-info" style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+              <ShieldCheck size={15} style={{ marginTop: 2 }} />
+              <span>
+                {isExecutive
+                  ? 'You can log your own hours, review team activity, and see the executive overview.'
+                  : 'You can log and manage your own hours. The executive overview is only available to executive board members.'}
+              </span>
             </div>
 
             {error && <div className="auth-error">{error}</div>}
