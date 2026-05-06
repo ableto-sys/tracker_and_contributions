@@ -5,6 +5,8 @@ import { SEED_LOGS, SEED_USERS, sanitizeStoredMedia } from '../lib/trackerConfig
 
 const DataContext = createContext(null);
 
+const PROFILE_SELECT = 'id, email, full_name, role, team, avatar_url, profile_completed';
+
 const LOG_SELECT = `
   id,
   user_id,
@@ -18,7 +20,8 @@ const LOG_SELECT = `
     full_name,
     email,
     role,
-    team
+    team,
+    profile_completed
   ),
   work_log_media (
     id,
@@ -48,6 +51,7 @@ function localProfiles() {
       email: user.email,
       role: user.role,
       team: user.team,
+      profileCompleted: user.profileCompleted ?? true,
     }));
 }
 
@@ -122,8 +126,8 @@ export function DataProvider({ children }) {
     setSyncError('');
 
     const profileQuery = user.role === 'executive'
-      ? supabase.from('profiles').select('id, email, full_name, role, team, avatar_url').order('full_name')
-      : supabase.from('profiles').select('id, email, full_name, role, team, avatar_url').eq('id', user.id);
+      ? supabase.from('profiles').select(PROFILE_SELECT).order('full_name')
+      : supabase.from('profiles').select(PROFILE_SELECT).eq('id', user.id);
 
     let logQuery = supabase
       .from('work_logs')
@@ -153,6 +157,7 @@ export function DataProvider({ children }) {
       role: profile.role,
       team: profile.team,
       avatarUrl: profile.avatar_url,
+      profileCompleted: profile.profile_completed,
     })));
     setLogs(normalizedLogs);
     setLoading(false);
@@ -163,10 +168,15 @@ export function DataProvider({ children }) {
   }, [authBackend, loadSupabaseLogs]);
 
   useEffect(() => {
+    if (!isSupabaseConfigured) loadLocal();
+  }, [loadLocal, user]);
+
+  useEffect(() => {
     if (!isSupabaseConfigured || !user || !supabase) return undefined;
 
     const channel = supabase
       .channel('work-log-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, loadSupabaseLogs)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'work_logs' }, loadSupabaseLogs)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'work_log_media' }, loadSupabaseLogs)
       .subscribe();

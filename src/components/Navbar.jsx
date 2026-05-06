@@ -1,7 +1,7 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getBackendLabel } from '../lib/supabaseClient';
-import { BarChart3, Clock, DatabaseZap, LayoutDashboard, LogOut } from 'lucide-react';
+import { BarChart3, Clock, DatabaseZap, LayoutDashboard, LogOut, UserRoundCog } from 'lucide-react';
 
 export default function Navbar() {
   const { user, logout } = useAuth();
@@ -50,6 +50,13 @@ export default function Navbar() {
             <BarChart3 size={15} /> Team Overview
           </button>
         )}
+
+        <button
+          className={`navbar-link ${isActive('/profile') ? 'active' : ''}`}
+          onClick={() => navigate('/profile')}
+        >
+          <UserRoundCog size={15} /> Profile
+        </button>
       </div>
 
       <div className="navbar-right">

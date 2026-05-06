@@ -3,7 +3,7 @@ import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
 import { SEED_USERS, TEAMS, getRoleForEmail } from '../lib/trackerConfig';
 
 const AuthContext = createContext(null);
-const seedVersion = 'v3';
+const seedVersion = 'v4';
 
 function fullNameFromAuthUser(authUser) {
   return (
@@ -29,6 +29,7 @@ function normalizeProfile(authUser, profile) {
     role: profile?.role || getRoleForEmail(email),
     team: profile?.team || authUser?.user_metadata?.team || TEAMS[0],
     avatarUrl: profile?.avatar_url || authUser?.user_metadata?.avatar_url || '',
+    profileCompleted: profile?.profile_completed ?? Boolean(authUser?.user_metadata?.team),
   };
 }
 
@@ -54,11 +55,12 @@ export function AuthProvider({ children }) {
       role: getRoleForEmail(email, authUser.user_metadata?.role || 'collaborator'),
       team: authUser.user_metadata?.team || TEAMS[0],
       avatar_url: authUser.user_metadata?.avatar_url || '',
+      profile_completed: Boolean(authUser.user_metadata?.team),
     };
 
     const { data: profile, error } = await supabase
       .from('profiles')
-      .select('id, email, full_name, role, team, avatar_url')
+      .select('id, email, full_name, role, team, avatar_url, profile_completed')
       .eq('id', authUser.id)
       .maybeSingle();
 
@@ -71,7 +73,7 @@ export function AuthProvider({ children }) {
     const { data: created, error: insertError } = await supabase
       .from('profiles')
       .insert(baseProfile)
-      .select('id, email, full_name, role, team, avatar_url')
+      .select('id, email, full_name, role, team, avatar_url, profile_completed')
       .single();
 
     if (insertError) throw insertError;
@@ -184,6 +186,7 @@ export function AuthProvider({ children }) {
             full_name: name,
             role: safeRole,
             team,
+            profile_completed: true,
           },
           emailRedirectTo: authRedirectUrl(),
         },
@@ -217,6 +220,7 @@ export function AuthProvider({ children }) {
       password,
       role: safeRole,
       team,
+      profileCompleted: true,
     };
 
     users.push(newUser);
@@ -250,6 +254,51 @@ export function AuthProvider({ children }) {
     return { ok: true };
   };
 
+  const updateProfile = async ({ name, team, profileCompleted = true }) => {
+    setAuthError('');
+
+    if (!user) return { error: 'You must be signed in to update your profile.' };
+
+    const fullName = name.trim();
+    if (!fullName) return { error: 'Full name is required.' };
+    if (!TEAMS.includes(team)) return { error: 'Select a valid team.' };
+
+    if (isSupabaseConfigured) {
+      const { data, error } = await supabase
+        .from('profiles')
+        .update({
+          full_name: fullName,
+          team,
+          profile_completed: profileCompleted,
+        })
+        .eq('id', user.id)
+        .select('id, email, full_name, role, team, avatar_url, profile_completed')
+        .single();
+
+      if (error) {
+        setAuthError(error.message);
+        return { error: error.message };
+      }
+
+      const nextUser = normalizeProfile(null, data);
+      setUser(nextUser);
+      return { ok: true, user: nextUser };
+    }
+
+    const users = getUsers();
+    const nextUsers = users.map(stored => (
+      stored.id === user.id
+        ? { ...stored, name: fullName, team, profileCompleted }
+        : stored
+    ));
+    const nextUser = { ...user, name: fullName, team, profileCompleted };
+
+    localStorage.setItem('abl_users', JSON.stringify(nextUsers));
+    localStorage.setItem('abl_session', JSON.stringify(nextUser));
+    setUser(nextUser);
+    return { ok: true, user: nextUser };
+  };
+
   const logout = async () => {
     if (isSupabaseConfigured) {
       await supabase.auth.signOut();
@@ -269,6 +318,7 @@ export function AuthProvider({ children }) {
     login,
     register,
     loginWithGoogle,
+    updateProfile,
     logout,
   };
 

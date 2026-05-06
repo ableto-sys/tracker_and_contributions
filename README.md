@@ -35,7 +35,7 @@ VITE_SUPABASE_MEDIA_BUCKET=work-media
 
 ## Backend Model
 
-- `profiles`: User profile, team, role, and executive status.
+- `profiles`: User profile, team, role, executive status, and profile completion state.
 - `work_logs`: Logged hours, notes, verification status, and team snapshot.
 - `work_log_media`: Private file metadata for screenshots, PDFs, photos, and videos.
 - `work-media`: Private Supabase Storage bucket with policies for owners and executives.

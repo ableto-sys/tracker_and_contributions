@@ -1,0 +1,136 @@
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { AlertCircle, CheckCircle, UserRoundCog } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { TEAMS } from '../lib/trackerConfig';
+
+export default function Profile() {
+  const { user, updateProfile } = useAuth();
+  const navigate = useNavigate();
+  const [form, setForm] = useState({
+    name: user?.name || '',
+    team: user?.team || TEAMS[0],
+  });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [saved, setSaved] = useState(false);
+
+  const needsSetup = user?.profileCompleted === false;
+
+  const set = (key, value) => {
+    setForm(current => ({ ...current, [key]: value }));
+    setError('');
+    setSaved(false);
+  };
+
+  const submit = async (event) => {
+    event.preventDefault();
+    setError('');
+    setSaved(false);
+
+    if (!form.name.trim()) {
+      setError('Full name is required.');
+      return;
+    }
+
+    setSaving(true);
+    const result = await updateProfile({
+      name: form.name,
+      team: form.team,
+      profileCompleted: true,
+    });
+    setSaving(false);
+
+    if (result.error) {
+      setError(result.error);
+      return;
+    }
+
+    setSaved(true);
+    if (needsSetup) {
+      navigate(result.user?.role === 'executive' ? '/executive' : '/dashboard', { replace: true });
+    }
+  };
+
+  return (
+    <div className="page-content">
+      <div className="profile-layout">
+        <div className="page-header">
+          <h1 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <UserRoundCog size={25} color="var(--accent)" />
+            {needsSetup ? 'Complete Your Profile' : 'Profile Settings'}
+          </h1>
+          <p className="page-subtitle">
+            {needsSetup
+              ? 'Confirm your name and team before logging hours.'
+              : 'Update the team and name used in your work logs.'}
+          </p>
+        </div>
+
+        {needsSetup && (
+          <div className="sync-alert" style={{ marginBottom: 18 }}>
+            <AlertCircle size={15} />
+            Google sign in needs one more step so AbleTo can place your hours under the correct team.
+          </div>
+        )}
+
+        <div className="card">
+          <form className="auth-form" onSubmit={submit}>
+            <div className="form-group">
+              <label className="form-label">Full Name</label>
+              <input
+                className="form-input"
+                value={form.name}
+                onChange={event => set('name', event.target.value)}
+                placeholder="Your full name"
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Email</label>
+              <input className="form-input" value={user?.email || ''} disabled />
+              <span className="form-hint">Email is managed through your sign-in method.</span>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Team</label>
+              <select className="form-select" value={form.team} onChange={event => set('team', event.target.value)}>
+                {TEAMS.map(team => <option key={team} value={team}>{team}</option>)}
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Role</label>
+              <input className="form-input" value={user?.role === 'executive' ? 'Executive / Team Lead' : 'Collaborator'} disabled />
+              <span className="form-hint">Role is assigned by AbleTo policy.</span>
+            </div>
+
+            {error && <div className="auth-error">{error}</div>}
+            {saved && !needsSetup && (
+              <div className="auth-info" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <CheckCircle size={14} /> Profile updated.
+              </div>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, flexWrap: 'wrap' }}>
+              {!needsSetup && (
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  onClick={() => navigate(user?.role === 'executive' ? '/executive' : '/dashboard')}
+                >
+                  Back
+                </button>
+              )}
+              <button className="btn btn-primary btn-lg" type="submit" disabled={saving}>
+                <UserRoundCog size={16} />
+                {saving ? 'Saving...' : needsSetup ? 'Continue' : 'Save Profile'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+}

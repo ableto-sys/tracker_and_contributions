@@ -43,6 +43,7 @@ export const SEED_USERS = [
     password: 'ableto2026',
     role: 'executive',
     team: 'Software Engineering',
+    profileCompleted: true,
   },
   {
     id: 'u1',
@@ -51,6 +52,7 @@ export const SEED_USERS = [
     password: 'demo1234',
     role: 'executive',
     team: 'Software Engineering',
+    profileCompleted: true,
   },
   {
     id: 'u2',
@@ -59,6 +61,7 @@ export const SEED_USERS = [
     password: 'demo1234',
     role: 'collaborator',
     team: 'Software Engineering',
+    profileCompleted: true,
   },
   {
     id: 'u3',
@@ -67,6 +70,7 @@ export const SEED_USERS = [
     password: 'demo1234',
     role: 'collaborator',
     team: 'Hardware Engineering',
+    profileCompleted: true,
   },
   {
     id: 'u4',
@@ -75,6 +79,7 @@ export const SEED_USERS = [
     password: 'demo1234',
     role: 'collaborator',
     team: 'Design & Communications',
+    profileCompleted: true,
   },
   {
     id: 'u5',
@@ -83,6 +88,7 @@ export const SEED_USERS = [
     password: 'demo1234',
     role: 'collaborator',
     team: 'Operations Strategy & Research',
+    profileCompleted: true,
   },
 ];
 

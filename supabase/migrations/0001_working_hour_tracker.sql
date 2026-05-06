@@ -18,9 +18,13 @@ create table if not exists public.profiles (
   role text not null default 'collaborator' check (role in ('executive', 'collaborator')),
   team text not null default 'Software Engineering',
   avatar_url text,
+  profile_completed boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.profiles
+add column if not exists profile_completed boolean not null default false;
 
 create table if not exists public.work_logs (
   id uuid primary key default gen_random_uuid(),
@@ -119,7 +123,8 @@ begin
     full_name,
     role,
     team,
-    avatar_url
+    avatar_url,
+    profile_completed
   )
   values (
     new.id,
@@ -127,7 +132,8 @@ begin
     coalesce(new.raw_user_meta_data ->> 'full_name', new.raw_user_meta_data ->> 'name', split_part(new.email, '@', 1)),
     public.role_for_email(new.email),
     coalesce(new.raw_user_meta_data ->> 'team', 'Software Engineering'),
-    new.raw_user_meta_data ->> 'avatar_url'
+    new.raw_user_meta_data ->> 'avatar_url',
+    coalesce((new.raw_user_meta_data ->> 'profile_completed')::boolean, false)
   )
   on conflict (id) do update set
     email = excluded.email,
@@ -135,6 +141,7 @@ begin
     role = public.role_for_email(excluded.email),
     team = coalesce(excluded.team, public.profiles.team),
     avatar_url = coalesce(excluded.avatar_url, public.profiles.avatar_url),
+    profile_completed = excluded.profile_completed,
     updated_at = now();
 
   return new;

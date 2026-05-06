@@ -134,6 +134,7 @@ input, textarea, select { font-family: inherit; }
 .page-header { margin-bottom: 28px; }
 .page-title { font-size: 26px; font-weight: 800; letter-spacing: 0; }
 .page-subtitle { font-size: 14px; color: var(--text-secondary); margin-top: 4px; }
+.profile-layout { max-width: 620px; margin: 0 auto; }
 
 .log-card {
   background: var(--bg-card); border: 1px solid var(--border);
