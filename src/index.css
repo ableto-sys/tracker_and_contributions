@@ -168,7 +168,7 @@ input, textarea, select { font-family: inherit; }
 .upload-preview { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
 
 .empty-state { text-align: center; padding: 60px 20px; color: var(--text-muted); }
-.empty-state svg { margin: 0 auto 16px; opacity: 0.4; }
+.empty-state > svg { margin: 0 auto 16px; opacity: 0.4; }
 .empty-state h3 { font-size: 16px; color: var(--text-secondary); margin-bottom: 6px; }
 .empty-state p { font-size: 13px; }
 
