@@ -254,12 +254,13 @@ export function AuthProvider({ children }) {
     return { ok: true };
   };
 
-  const updateProfile = async ({ name, team, profileCompleted = true }) => {
+  const updateProfile = async ({ name, team, role, profileCompleted = true }) => {
     setAuthError('');
 
     if (!user) return { error: 'You must be signed in to update your profile.' };
 
     const fullName = name.trim();
+    const safeRole = role === 'executive' ? 'executive' : 'collaborator';
     if (!fullName) return { error: 'Full name is required.' };
     if (!TEAMS.includes(team)) return { error: 'Select a valid team.' };
 
@@ -269,6 +270,7 @@ export function AuthProvider({ children }) {
         .update({
           full_name: fullName,
           team,
+          role: safeRole,
           profile_completed: profileCompleted,
         })
         .eq('id', user.id)
@@ -288,10 +290,10 @@ export function AuthProvider({ children }) {
     const users = getUsers();
     const nextUsers = users.map(stored => (
       stored.id === user.id
-        ? { ...stored, name: fullName, team, profileCompleted }
+        ? { ...stored, name: fullName, team, role: safeRole, profileCompleted }
         : stored
     ));
-    const nextUser = { ...user, name: fullName, team, profileCompleted };
+    const nextUser = { ...user, name: fullName, team, role: safeRole, profileCompleted };
 
     localStorage.setItem('abl_users', JSON.stringify(nextUsers));
     localStorage.setItem('abl_session', JSON.stringify(nextUser));

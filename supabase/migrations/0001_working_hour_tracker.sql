@@ -167,6 +167,7 @@ drop policy if exists "Executive allowlist is visible to executives" on public.e
 drop policy if exists "Profiles visible to owner and executives" on public.profiles;
 drop policy if exists "Profiles can be inserted by their owner" on public.profiles;
 drop policy if exists "Profiles can be updated by owner without privilege escalation" on public.profiles;
+drop policy if exists "Profiles can be updated by owner" on public.profiles;
 drop policy if exists "Profiles can be managed by executives" on public.profiles;
 drop policy if exists "Work logs visible to owner and executives" on public.work_logs;
 drop policy if exists "Work logs inserted by owner" on public.work_logs;
@@ -200,14 +201,14 @@ with check (
   and role = public.role_for_email(email)
 );
 
-create policy "Profiles can be updated by owner without privilege escalation"
+create policy "Profiles can be updated by owner"
 on public.profiles
 for update
 to authenticated
 using (id = auth.uid())
 with check (
   id = auth.uid()
-  and role = public.role_for_email(email)
+  and role in ('executive', 'collaborator')
 );
 
 create policy "Profiles can be managed by executives"

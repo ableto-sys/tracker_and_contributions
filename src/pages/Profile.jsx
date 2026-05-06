@@ -10,13 +10,14 @@ export default function Profile() {
   const [form, setForm] = useState({
     name: user?.name || '',
     team: user?.team || TEAMS[0],
+    role: user?.role || 'collaborator',
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [saved, setSaved] = useState(false);
 
   const needsSetup = user?.profileCompleted === false;
-  const isExecutive = user?.role === 'executive';
+  const isExecutive = form.role === 'executive';
 
   const set = (key, value) => {
     setForm(current => ({ ...current, [key]: value }));
@@ -38,6 +39,7 @@ export default function Profile() {
     const result = await updateProfile({
       name: form.name,
       team: form.team,
+      role: form.role,
       profileCompleted: true,
     });
     setSaving(false);
@@ -103,9 +105,20 @@ export default function Profile() {
 
             <div className="form-group">
               <label className="form-label">Executive Board Access</label>
-              <input className="form-input" value={isExecutive ? 'Enabled' : 'Standard member'} disabled />
+              <button
+                type="button"
+                className={`switch-row ${isExecutive ? 'active' : ''}`}
+                onClick={() => set('role', isExecutive ? 'collaborator' : 'executive')}
+                aria-pressed={isExecutive}
+              >
+                <span className="switch-track"><span className="switch-thumb" /></span>
+                <span className="switch-copy">
+                  <strong>{isExecutive ? 'Executive Board' : 'Standard Member'}</strong>
+                  <span>{isExecutive ? 'Team overview enabled' : 'Personal hours only'}</span>
+                </span>
+              </button>
               <span className="form-hint">
-                Board access is assigned from the AbleTo executive email allowlist.
+                Temporary board-only control for this rollout.
               </span>
             </div>
 

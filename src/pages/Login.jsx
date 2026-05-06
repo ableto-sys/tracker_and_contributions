@@ -120,7 +120,7 @@ export default function Login() {
                   <label className="form-label">Executive Board Access</label>
                   <input className="form-input" value="Assigned by AbleTo policy" disabled />
                   <span className="form-hint">
-                    Board access is based on the executive email allowlist, not a team title.
+                    Board access can be adjusted from Profile during this rollout.
                   </span>
                 </div>
               </>

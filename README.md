@@ -39,7 +39,7 @@ VITE_SUPABASE_MEDIA_BUCKET=work-media
 - `work_logs`: Logged hours, notes, verification status, and team snapshot.
 - `work_log_media`: Private file metadata for screenshots, PDFs, photos, and videos.
 - `work-media`: Private Supabase Storage bucket with policies for owners and executives.
-- `executive_email_allowlist`: Emails that receive executive board access automatically. Users cannot self-select this access.
+- `executive_email_allowlist`: Emails that receive executive board access automatically. The Profile screen also includes a temporary board-only access switch for the current rollout.
 
 ## Scripts
 
